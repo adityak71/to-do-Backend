@@ -1,6 +1,14 @@
 # Todo Backend
 
-A beginner-friendly Express and MongoDB backend for creating todo entries. The project uses Express for the HTTP server, Mongoose for MongoDB communication, and dotenv for environment variables.
+This project is a beginner-friendly Express + MongoDB API for managing todo items. It demonstrates how to set up routes, controllers, and a Mongoose model in a simple backend application.
+
+## Tech Stack
+
+- Node.js
+- Express.js
+- MongoDB
+- Mongoose
+- dotenv
 
 ## Project Structure
 
@@ -9,11 +17,14 @@ todo-first/
 |-- config/
 |   `-- database.js
 |-- controllers/
-|   `-- createToDo.js
+|   |-- createToDo.js
+|   `-- getToDo.js
 |-- models/
 |   `-- todo.js
 |-- public/
 |   |-- database.png
+|   |-- getalltodos.png
+|   |-- gettodobyid.png
 |   `-- postman-post.png
 |-- routes/
 |   `-- todos.js
@@ -21,243 +32,183 @@ todo-first/
 |-- .gitignore
 |-- index.js
 |-- package.json
+|-- README.md
 `-- package-lock.json
 ```
 
-## Technologies
-
-- Node.js
-- Express 5
-- MongoDB
-- Mongoose
-- dotenv
-
 ## Installation
 
-1. Install Node.js and MongoDB access.
-2. Install the project dependencies:
+1. Install dependencies:
 
    ```bash
    npm install
    ```
 
-3. Add the environment variables in `.env`:
+2. Create a `.env` file in the project root:
 
    ```env
    PORT=4000
-   DATABASE_URL=mongodb_connection_string_here
+   DATABASE_URL=mongodb://localhost:27017/todo-first
    ```
 
-   `PORT` controls the server port. `DATABASE_URL` is the MongoDB connection string used by Mongoose.
-
-4. Start the server:
+3. Start the server:
 
    ```bash
    node index.js
    ```
 
-   For development, the package script can be used with Nodemon when it is installed:
+   Or use the development script:
 
    ```bash
    npm run dev
    ```
 
-The default server URL is `http://localhost:4000` unless another `PORT` is supplied.
+The app runs on `http://localhost:4000` by default unless you set a different `PORT`.
 
-## Application Entry Point: `index.js`
+## Application Flow
 
-`index.js` is the main file of the backend. Its responsibilities are:
+### Main server setup
 
-1. Create an Express application.
-2. Load environment variables with `dotenv`.
-3. Select the port from `process.env.PORT`, or use `4000` as a fallback.
-4. Enable JSON request bodies with `express.json()`.
-5. Mount the todo router at `/api/v1`.
-6. Start the HTTP server.
-7. Connect to MongoDB through `config/database.js`.
-8. Respond to `GET /` with a simple server health message.
+The app is initialized in `index.js`:
 
-The route mounting means that a route written as `/createtodos` inside `routes/todos.js` becomes `/api/v1/createtodos` from a client’s point of view.
+- loads environment variables
+- enables JSON parsing with `express.json()`
+- mounts the router at `/api/v1`
+- starts the server on the configured port
+- connects to MongoDB
+- exposes a health check route at `/`
 
-## Database Configuration: `config/database.js`
+### Database connection
 
-This file owns the MongoDB connection logic.
+`config/database.js` uses Mongoose to connect with the `DATABASE_URL` environment variable.
 
 ```js
 mongoose.connect(process.env.DATABASE_URL)
 ```
 
-`mongoose.connect()` receives the connection string from the `DATABASE_URL` environment variable. A successful connection prints a success message. A failed connection prints the error and exits the process with status `1`.
+If the connection fails, the app logs the error and exits.
 
-The connection function is exported so that `index.js` can call it when the application starts.
+## Model
 
-### Connection Flow
-
-```text
-index.js
-   |
-   | calls dbConnect()
-   v
-config/database.js
-   |
-   | reads DATABASE_URL
-   v
-MongoDB
-```
-
-## Model: `models/todo.js`
-
-The model describes the shape of a todo document in MongoDB. It is created from a Mongoose schema and exported as the `ToDo` model.
-
-| Field | Type | Purpose |
-| --- | --- | --- |
-| `title` | String | Todo title, intended to be required and limited to 50 characters |
-| `description` | String | Todo details, intended to be required and limited to 50 characters |
-| `createdAt` | Date | Creation time, defaults to `Date.now` |
-| `updatedAt` | Date | Initial update time, defaults to `Date.now` |
-
-Mongoose automatically adds an `_id` field to each document. The model name is `ToDo`; MongoDB will use its pluralized collection name, normally `todos`.
-
-## Controller: `controllers/createToDo.js`
-
-The controller contains the action performed when a client creates a todo.
-
-### Request processing
-
-1. Read `title` and `description` from `req.body`.
-2. Pass those values to `Todo.create()`.
-3. Save the new document in MongoDB.
-4. Return the saved document in the JSON response.
-
-The success response has this shape:
-
-```json
-{
-  "success": true,
-  "data": {
-    "title": "Learn Express",
-    "description": "Practice creating a POST route"
-  },
-  "message": "Entry Created SuccessFully"
-}
-```
-
-If the database operation fails, the controller returns HTTP status `500` with an error message.
-
-## Routes: `routes/todos.js`
-
-The router imports the controller and connects it to the HTTP method and path:
+The todos are stored in MongoDB using the schema defined in `models/todo.js`.
 
 ```js
-router.post("/createtodos", createToDo);
+const todoSchema = new mongoose.Schema({
+  title: {
+    type: String,
+    required: true,
+    maxLength: 50
+  },
+  description: {
+    type: String,
+    required: true,
+    maxLength: 50
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
+  }
+});
 ```
 
-Because the router is mounted in `index.js` at `/api/v1`, the complete endpoint is:
+## Routes
 
-```text
-POST http://localhost:4000/api/v1/createtodos
-```
+The routes are mounted under `/api/v1` in `routes/todos.js`.
 
-### Create a Todo
+### Create todo
 
-Request headers:
-
-```text
-Content-Type: application/json
+```http
+POST /api/v1/createtodos
 ```
 
 Request body:
 
 ```json
 {
-  "title": "Complete backend notes",
-  "description": "Document the todo API"
+  "title": "Learn Express",
+  "description": "Practice building an API"
 }
 ```
 
-Example with cURL:
+Example:
 
 ```bash
-curl -X POST http://localhost:4000/api/v1/createtodos ^
-  -H "Content-Type: application/json" ^
-  -d "{\"title\":\"Complete backend notes\",\"description\":\"Document the todo API\"}"
+curl -X POST http://localhost:4000/api/v1/createtodos \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Learn Express","description":"Practice building an API"}'
 ```
 
-In PowerShell, the same request can be written as:
+### Get all todos
 
-```powershell
-$body = @{ title = "Complete backend notes"; description = "Document the todo API" } | ConvertTo-Json
-Invoke-RestMethod -Method Post -Uri "http://localhost:4000/api/v1/createtodos" -ContentType "application/json" -Body $body
+```http
+GET /api/v1/gettodos
 ```
 
-### Health Check
+Example:
 
-```text
-GET http://localhost:4000/
+```bash
+curl http://localhost:4000/api/v1/gettodos
 ```
 
-Expected response:
+### Health check
+
+```http
+GET /
+```
+
+Response:
 
 ```text
 Server is Running Okay
 ```
 
-## Public Images
+## Controllers
 
-The `public` directory stores reference images for learning and API testing. These files are not used by the Express API logic.
+### `createToDo.js`
 
-### Database diagram
+This controller reads `title` and `description` from `req.body`, creates a new MongoDB record, and returns the created item.
 
-Use [`public/database.png`](public/database.png) when studying the database or collection relationship shown in the project.
+### `getToDo.js`
 
-![Database reference](public/database.png)
+This controller fetches all todo entries from MongoDB and returns them in a JSON response.
 
-### Postman request example
+## Notes
 
-Use [`public/postman-post.png`](public/postman-post.png) when learning how to configure the `POST` request in Postman. It shows the method, endpoint, request body, and response workflow to compare with your own test.
+- Make sure MongoDB is running before starting the app.
+- The API expects JSON request bodies on routes that create data.
+- Route names are case-sensitive in code and must match the controller exports exactly.
+- Keep the MongoDB connection string private. Do not share it publicly or commit real credentials to a public repository.
 
-![Postman POST request reference](public/postman-post.png)
+## Implemented Endpoints
 
-## Complete Request Flow
+- `POST /api/v1/createtodos`
+- `GET /api/v1/gettodos`
+- `GET /api/v1/gettodo/:id`
+- `GET /`
 
-```text
-Client/Postman
-    |
-    | POST /api/v1/createtodos
-    v
-index.js
-    |
-    | express.json() parses JSON
-    v
-routes/todos.js
-    |
-    | forwards request to createToDo
-    v
-controllers/createToDo.js
-    |
-    | calls Todo.create()
-    v
-models/todo.js
-    |
-    | Mongoose schema and model
-    v
-MongoDB
+## Common error to avoid
+
+A common issue in this project is a mismatch between the exported function name and the imported name. For example:
+
+```js
+const { getToDo } = require('../controllers/getToDo');
 ```
 
-## Important Learning Notes
+must match the export in the controller file:
 
-- The server must be connected to MongoDB before a todo can be created successfully.
-- The request body must be valid JSON because the application uses `express.json()`.
-- The API currently implements creation and health-check routes only. Read, update, and delete routes have not been added yet.
-- Keep the MongoDB connection string private. Do not share it publicly or commit real credentials to a public repository.
-- The schema currently uses `require`; Mongoose’s validation option is normally written as `required`. Update that option if you want missing `title` and `description` values to be rejected automatically.
-- The error response currently refers to `response` even though that variable may not exist when an error occurs. This is a useful future cleanup: return `data: null` in the error response.
+```js
+exports.getToDo = async (req, res) => {
+```
+
+This was fixed in the project to keep the route working correctly.
 
 ## Possible Next Features
 
-1. Add `GET /api/v1/todos` to retrieve todos.
-2. Add `GET /api/v1/todos/:id` to retrieve one todo.
-3. Add `PUT` or `PATCH` to update a todo.
-4. Add `DELETE` to remove a todo.
-5. Add request validation and consistent error handling.
-6. Add automated tests for the controller and routes.
+1. Add `PUT` or `PATCH` to update a todo.
+2. Add `DELETE` to remove a todo.
+3. Add request validation and consistent error handling.
+4. Add automated tests for the controller and routes.
