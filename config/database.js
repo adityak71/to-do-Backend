@@ -11,8 +11,9 @@ const dbConnect = async () => {
         console.error(error.message);
 
 
-        //eska kya matlab hota hai find out kro
+        //forcefully terminate the application if db connection fails
         process.exit(1);
+        // because of db we cannot run the application, so we are terminating the application forcefully
     })
 }
 
